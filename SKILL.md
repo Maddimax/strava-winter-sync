@@ -1,7 +1,7 @@
 ---
 name: strava-winter-sync
 description: Trägt Strava-Aktivitäten automatisch in Winter-Rad-Challenges ein – die Winterchallenge auf radsport-events.de und den Winterpokal von Rennrad-News, MTB-News oder eMTB-News – mit Einrichtungsassistent und täglicher geplanter Aufgabe. Benutze diesen Skill, wenn jemand Strava-Fahrten/Zwift-Fahrten/Workouts in den Winterpokal oder die Winterchallenge übertragen, das automatisieren, einrichten, neu anmelden oder den täglichen Sync ausführen will – auch wenn nur „Winterpokal“, „Winterchallenge“, „radsport-events“ oder „Strava-Import“ erwähnt wird.
-compatibility: Claude Desktop-App (Code-Tab) mit Strava-Connector, eingebautem Browser (mcp__Claude_Browser__*), geplanten Aufgaben (mcp__scheduled-tasks__*) und python3.
+compatibility: Am besten Claude Desktop-App (Code-Tab) mit Strava-Connector, eingebautem Browser und geplanten Aufgaben; experimentell auch GitHub Copilot CLI / OpenAI Codex mit Strava- und Playwright-MCP. Braucht python3.
 ---
 
 # Strava → Winter-Challenges
@@ -20,6 +20,16 @@ Es gibt zwei Modi. Entscheide anhand der Anfrage:
 `<skill>` steht unten für das Verzeichnis dieses Skills (das Basisverzeichnis, das beim Laden angezeigt wird). Daten liegen in `~/.config/strava-winter-sync/`:
 - `config.json` – Einstellungen (Schema unten)
 - `rse_token.json` – Token für radsport-events.de (Modus 600, wird vom Skript verwaltet)
+
+## Andere Agenten (Copilot, Codex, …)
+
+Die Anleitung nennt die Werkzeuge der Claude-Desktop-App. Läufst du in einem anderen Agenten, nimm das Gegenstück:
+- **Strava-Connector `list_activities`** → das Aktivitäten-Tool eines Strava-MCP-Servers. Ordne dessen Felder den hier benutzten zu (`id`, `sport_type`, `start_local`, `distance` in m, `moving_time` in s, `is_trainer`, `is_commute`). Fehlt `sport_type` und gibt es nur `type`, nimm das.
+- **Eingebauter Browser (`mcp__Claude_Browser__*`)** → ein Browser-MCP wie Playwright MCP: „navigate“ statt `navigate`, „evaluate“ statt `javascript_tool`, „click“ statt Klick per `find`.
+- **Geplante Aufgaben** → gibt es dort nicht. Lege in Schritt 7 keine Aufgabe an, sondern zeig dem Nutzer den passenden Cron-Eintrag aus der README und lass ihn den selbst eintragen.
+- **AskUserQuestion** → einfach im Chat fragen.
+
+Fehlt ein Baustein ganz (z. B. kein Browser), biete an, nur die Ziele einzurichten, die ohne ihn gehen (radsport-events.de braucht den Browser nur bei der Anmeldung).
 
 ## Grundregeln (gelten in beiden Modi)
 

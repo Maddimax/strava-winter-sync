@@ -40,6 +40,43 @@ Doppelte Einträge werden erkannt; bestehende Einträge werden nie geändert ode
 - **radsport-events.de:** Melde dich dort im normalen Browser nicht ab – das macht das gespeicherte Token ungültig. Läuft die Anmeldung ab, meldet die Aufgabe das; dann sag Claude „Strava-Winter-Sync neu anmelden“.
 - Deine Daten (Einstellungen, Token) liegen nur lokal unter `~/.config/strava-winter-sync/`.
 
+## Mit GitHub Copilot oder OpenAI Codex (experimentell, ungetestet)
+
+Der Skill folgt dem offenen [Agent-Skills](https://agentskills.io)-Format (`SKILL.md`), das auch die **GitHub Copilot CLI** und **OpenAI Codex** verstehen. Am bequemsten ist er aber mit Claude, weil er drei Bausteine der Claude-App nutzt. In anderen Agenten musst du diese selbst ersetzen:
+
+| Claude-App | Ersatz bei Copilot / Codex |
+|---|---|
+| Strava-Connector | ein Strava-MCP-Server (es gibt mehrere Community-Projekte). Der Skill erwartet pro Aktivität `id`, `sport_type`, `start_local`, `distance` (m), `moving_time`, `is_trainer`, `is_commute` – je nach Server muss der Agent die Felder zuordnen. |
+| Eingebauter Browser | [Playwright MCP](https://github.com/microsoft/playwright-mcp) (mit dauerhaftem Browser-Profil, damit die Winterpokal-Anmeldung erhalten bleibt). Nur für den Winterpokal und die Anmeldung bei radsport-events.de nötig. |
+| Geplante Aufgaben | `cron` (Linux/macOS) bzw. `launchd` oder Aufgabenplanung (Windows), die den Agenten nicht-interaktiv startet (siehe unten). |
+
+Der Teil für **radsport-events.de** braucht nur `python3` und funktioniert überall gleich.
+
+### Installation
+
+Den Ordner dieses Repos als `strava-winter-sync` in das Skill-Verzeichnis kopieren:
+
+```bash
+# GitHub Copilot CLI
+git clone https://github.com/Maddimax/strava-winter-sync ~/.copilot/skills/strava-winter-sync
+
+# OpenAI Codex
+git clone https://github.com/Maddimax/strava-winter-sync ~/.codex/skills/strava-winter-sync
+```
+
+Danach den Agenten neu starten (in der Copilot CLI reicht `/skills reload`) und die MCP-Server für Strava und Playwright in dessen Konfiguration eintragen.
+
+Dann wie bei Claude: **„Richte den Strava-Winter-Sync ein“**. Den Schritt „Tägliche Aufgabe anlegen“ kann der Assistent dort nicht selbst erledigen – lege stattdessen einen Cron-Job an, z. B. täglich um 23:00:
+
+```cron
+# Copilot CLI
+0 23 * * * copilot -p "Führe den Skill strava-winter-sync im Modus Sync aus." --allow-all-tools >> ~/.config/strava-winter-sync/sync.log 2>&1
+# Codex
+0 23 * * * codex exec "Führe den Skill strava-winter-sync im Modus Sync aus." >> ~/.config/strava-winter-sync/sync.log 2>&1
+```
+
+Prüf vorher, welche Berechtigungs-Optionen deine Version für unbeaufsichtigte Läufe braucht, und gib nur so viele Rechte wie nötig. Rückmeldungen, ob und wie es bei dir läuft, gern als Issue.
+
 ## Inhalt
 
 ```
