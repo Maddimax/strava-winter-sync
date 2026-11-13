@@ -50,3 +50,7 @@ assets/task-prompt.md       Vorlage für die geplante Aufgabe
 ```
 
 Kein offizielles Projekt von radsport-events.de, Rennrad-News, MTB-News oder Strava.
+
+## Lizenz
+
+[MIT](LICENSE)
