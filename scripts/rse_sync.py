@@ -11,9 +11,14 @@ Typen: ROAD, GRAVEL, MTB, TOUR, INDOOR. Duplikate werden über den Strava-Link (
 Daten liegen in $STRAVA_WINTER_SYNC_DIR (Standard: ~/.config/strava-winter-sync).
 Das Refresh-Token wird bei jedem Lauf rotiert und ist 7 Tage gültig.
 
+Automatische Neu-Anmeldung (optional, macOS/Windows/Linux): Steht in config.json
+radsport_events.username und liegt im Passwort-Speicher des Systems ein Eintrag
+"strava-winter-sync-rse" für diesen Benutzer (siehe credentials.py / README), meldet sich
+das Skript damit selbst an, wenn das Token fehlt oder abgelaufen ist.
+
 Exit-Meldungen, auf die der Aufrufer reagieren soll:
-  NO_TOKEN      – noch keine Einrichtung
-  AUTH_FAILED   – Token abgelaufen/ungültig → neu anmelden
+  NO_TOKEN      – noch keine Einrichtung (und kein Schlüsselbund-Eintrag)
+  AUTH_FAILED   – Token abgelaufen/ungültig und kein (funktionierender) Passwort-Login → neu anmelden
   NOT_JOINED    – Benutzer ist der aktuellen Challenge nicht beigetreten
 """
 import datetime
@@ -23,11 +28,19 @@ import sys
 import urllib.error
 import urllib.request
 
+from credentials import get_password
+
+if hasattr(sys.stdout, "reconfigure"):  # Windows-Konsole: Umlaute/JSON sicher ausgeben
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 API = "https://api.radsport-events.de/api/v1"
 DIR = os.path.expanduser(os.environ.get("STRAVA_WINTER_SYNC_DIR", "~/.config/strava-winter-sync"))
 TOKEN = os.path.join(DIR, "rse_token.json")
+CONFIG = os.path.join(DIR, "config.json")
 TYPES = {"ROAD", "GRAVEL", "MTB", "TOUR", "INDOOR"}
 MAX_KM_PER_DAY = 400
+KEYCHAIN_SERVICE = "strava-winter-sync-rse"
 
 
 def call(method, path, body=None, token=None):
@@ -57,14 +70,42 @@ def write_token(rt):
     os.replace(tmp, TOKEN)
 
 
+def stored_login():
+    """(Benutzername, Passwort) für die automatische Anmeldung, sonst None.
+    Benutzername: config.json → radsport_events.username; Passwort: Passwort-Speicher des Systems."""
+    try:
+        with open(CONFIG) as f:
+            user = json.load(f).get("radsport_events", {}).get("username")
+    except (OSError, ValueError):
+        return None
+    pw = get_password(KEYCHAIN_SERVICE, user)
+    return (user, pw) if pw else None
+
+
+def password_login(reason):
+    creds = stored_login()
+    if not creds:
+        return None
+    st, data = call("POST", "/auth/login", {"username": creds[0], "password": creds[1]})
+    if st != 200 or not isinstance(data, dict) or "accessToken" not in data:
+        sys.exit(f"AUTH_FAILED: {reason}; Passwort-Login lieferte {st}: {str(data)[:120]}")
+    print(f"INFO: {reason} – mit Passwort aus dem Schlüsselbund neu angemeldet.", file=sys.stderr)
+    return data
+
+
 def access_token():
     if not os.path.exists(TOKEN):
-        sys.exit(f"NO_TOKEN: {TOKEN} fehlt – Einrichtung nötig.")
-    with open(TOKEN) as f:
-        rt = json.load(f)["refreshToken"]
-    st, data = call("POST", "/auth/refresh", {"refreshToken": rt})
-    if st != 200 or not isinstance(data, dict) or "accessToken" not in data:
-        sys.exit(f"AUTH_FAILED: refresh lieferte {st}. Neu-Anmeldung bei radsport-events.de nötig.")
+        data = password_login("kein Token")
+        if not data:
+            sys.exit(f"NO_TOKEN: {TOKEN} fehlt – Einrichtung nötig.")
+    else:
+        with open(TOKEN) as f:
+            rt = json.load(f)["refreshToken"]
+        st, data = call("POST", "/auth/refresh", {"refreshToken": rt})
+        if st != 200 or not isinstance(data, dict) or "accessToken" not in data:
+            data = password_login(f"Token abgelaufen (refresh {st})")
+            if not data:
+                sys.exit(f"AUTH_FAILED: refresh lieferte {st}. Neu-Anmeldung bei radsport-events.de nötig.")
     write_token(data["refreshToken"])
     return data["accessToken"]
 

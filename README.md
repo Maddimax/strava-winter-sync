@@ -11,8 +11,11 @@ Mit eingebautem Einrichtungsassistenten: Claude fragt dich, was du willst, führ
 
 - **Claude-Desktop-App** (macOS/Windows) mit dem **Code-Tab** – nur dort gibt es den eingebauten Browser und geplante Aufgaben. Im reinen Web-Chat funktioniert es nicht.
 - **Strava-Connector** in Claude verbunden (*Einstellungen → Connectors → Strava*)
-- `python3` (auf dem Mac ggf. per `xcode-select --install`)
+- Python 3.8+ (`python3` auf dem Mac, ggf. per `xcode-select --install`; `py` unter Windows, z. B. per `winget install Python.Python.3.12`)
 - Ein Konto bei radsport-events.de bzw. im Rennrad-News-/MTB-News-Forum, und du bist der jeweiligen Challenge beigetreten
+- Für den Winterpokal per Skript und die automatische Neu-Anmeldung: `python3 -m pip install --user keyring playwright` und `python3 -m playwright install chromium` (der Assistent hilft dabei)
+
+Läuft auf macOS, Windows und Linux.
 
 ## Installation
 
@@ -37,8 +40,20 @@ Doppelte Einträge werden erkannt; bestehende Einträge werden nie geändert ode
 
 - Die tägliche Aufgabe läuft nur, wenn die Claude-App offen ist (sonst beim nächsten Start).
 - Klick nach der Einrichtung einmal auf **„Jetzt ausführen“** bei der Aufgabe und bestätige die Berechtigungen.
-- **radsport-events.de:** Melde dich dort im normalen Browser nicht ab – das macht das gespeicherte Token ungültig. Läuft die Anmeldung ab, meldet die Aufgabe das; dann sag Claude „Strava-Winter-Sync neu anmelden“.
-- Deine Daten (Einstellungen, Token) liegen nur lokal unter `~/.config/strava-winter-sync/`.
+- **radsport-events.de:** Melde dich dort im normalen Browser nicht ab – das macht das gespeicherte Token ungültig. Läuft die Anmeldung ab, meldet die Aufgabe das; dann sag Claude „Strava-Winter-Sync neu anmelden“ – oder richte die automatische Neu-Anmeldung ein (unten).
+- Deine Daten (Einstellungen, Token, Browser-Profil) liegen nur lokal unter `~/.config/strava-winter-sync/`.
+
+## Automatische Neu-Anmeldung (optional)
+
+Anmeldungen laufen irgendwann ab (radsport-events.de nach 7 Tagen ohne Lauf, Winterpokal nach Ablauf der Forum-Sitzung). Damit du dich dann nicht selbst neu anmelden musst, kannst du deine Passwörter im Passwort-Speicher deines Systems hinterlegen – unter macOS im Schlüsselbund, unter Windows in der Anmeldeinformationsverwaltung, unter Linux im Secret Service. Die Skripte lesen sie nur, wenn eine Anmeldung abgelaufen ist; Claude sieht sie nie.
+
+```bash
+python3 -m pip install --user keyring
+python3 -m keyring set strava-winter-sync-rse DEIN_BENUTZERNAME
+python3 -m keyring set strava-winter-sync-winterpokal DEIN_BENUTZERNAME
+```
+
+(Unter Windows `py` statt `python3`.) Der Befehl fragt verdeckt nach dem Passwort. Den Benutzernamen trägt der Assistent in die `config.json` ein. Bei radsport-events.de brauchst du dafür ein Passwort – falls du dich bisher nur per E-Mail-Code anmeldest, setz zuerst eines auf der Website. Eine Zwei-Faktor-Anmeldung im Forum wird nicht unterstützt.
 
 ## Mit GitHub Copilot oder OpenAI Codex (experimentell, ungetestet)
 
@@ -47,10 +62,10 @@ Der Skill folgt dem offenen [Agent-Skills](https://agentskills.io)-Format (`SKIL
 | Claude-App | Ersatz bei Copilot / Codex |
 |---|---|
 | Strava-Connector | ein Strava-MCP-Server (es gibt mehrere Community-Projekte). Der Skill erwartet pro Aktivität `id`, `sport_type`, `start_local`, `distance` (m), `moving_time`, `is_trainer`, `is_commute` – je nach Server muss der Agent die Felder zuordnen. |
-| Eingebauter Browser | [Playwright MCP](https://github.com/microsoft/playwright-mcp) (mit dauerhaftem Browser-Profil, damit die Winterpokal-Anmeldung erhalten bleibt). Nur für den Winterpokal und die Anmeldung bei radsport-events.de nötig. |
+| Eingebauter Browser | Mit `winterpokal_sync.py` und der automatischen Neu-Anmeldung gar nicht nötig. Sonst [Playwright MCP](https://github.com/microsoft/playwright-mcp) mit dauerhaftem Browser-Profil. |
 | Geplante Aufgaben | `cron` (Linux/macOS) bzw. `launchd` oder Aufgabenplanung (Windows), die den Agenten nicht-interaktiv startet (siehe unten). |
 
-Der Teil für **radsport-events.de** braucht nur `python3` und funktioniert überall gleich.
+Beide Skripte brauchen nur Python (plus `keyring`/`playwright`) und funktionieren überall gleich.
 
 ### Installation
 
@@ -75,13 +90,21 @@ Dann wie bei Claude: **„Richte den Strava-Winter-Sync ein“**. Den Schritt �
 0 23 * * * codex exec "Führe den Skill strava-winter-sync im Modus Sync aus." >> ~/.config/strava-winter-sync/sync.log 2>&1
 ```
 
+Unter Windows statt Cron die Aufgabenplanung, z. B.:
+
+```powershell
+schtasks /Create /SC DAILY /ST 23:00 /TN strava-winter-sync /TR "copilot -p \"Führe den Skill strava-winter-sync im Modus Sync aus.\" --allow-all-tools"
+```
+
 Prüf vorher, welche Berechtigungs-Optionen deine Version für unbeaufsichtigte Läufe braucht, und gib nur so viele Rechte wie nötig. Rückmeldungen, ob und wie es bei dir läuft, gern als Issue.
 
 ## Inhalt
 
 ```
 SKILL.md                    Anleitung für Claude (Einrichtung + täglicher Sync)
-scripts/rse_sync.py         radsport-events.de-API (Token-Rotation, Duplikat-Prüfung)
+scripts/rse_sync.py         radsport-events.de-API (Token-Rotation, Duplikat-Prüfung, Passwort-Login)
+scripts/winterpokal_sync.py Winterpokal-Strava-Import per Playwright (inkl. Forum-Login)
+scripts/credentials.py      Passwörter aus dem System-Passwort-Speicher (keyring)
 references/                 Details zu beiden Seiten
 assets/task-prompt.md       Vorlage für die geplante Aufgabe
 ```

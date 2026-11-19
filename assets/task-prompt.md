@@ -6,6 +6,6 @@ Falls der Skill nicht in der Skill-Liste auftaucht, lies seine Anleitung direkt 
 Konfiguration: `~/.config/strava-winter-sync/config.json`.
 
 Wichtig für diesen unbeaufsichtigten Lauf:
-- Niemals selbst irgendwo einloggen, keine Passwörter oder Login-Codes eingeben. Fehlt eine Anmeldung, das melden und mit dem nächsten Ziel weitermachen.
+- Niemals selbst irgendwo einloggen, keine Passwörter oder Login-Codes eingeben oder auslesen. Die Skripte dürfen sich mit dem vom Nutzer hinterlegten Passwort selbst neu anmelden; klappt das nicht oder ist es nicht eingerichtet, das melden und mit dem nächsten Ziel weitermachen.
 - Keine bestehenden Einträge ändern oder löschen.
 - Am Ende eine kurze Zusammenfassung pro Ziel (neu eingetragen / ausgelassen / Fehler) und den aktuellen Stand.

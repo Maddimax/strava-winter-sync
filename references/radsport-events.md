@@ -8,15 +8,21 @@ Die Challenge wechselt jede Saison; das Skript nutzt immer `/challenge/current` 
 | Aufruf | Zweck |
 |---|---|
 | `POST /auth/refresh` `{refreshToken}` | liefert `accessToken` + **neues** `refreshToken` (das alte wird ungültig). Gültig 7 Tage. |
+| `POST /auth/login` `{username, password}` | Passwort-Login (Benutzername oder E-Mail); liefert dieselben Tokens. Nur für die automatische Neu-Anmeldung. |
 | `GET /challenge/current` | Titel, `startsOn`, `endsOn` |
 | `GET /challenge/current/me` (Bearer) | eigene km, Rang, Team, Liste `rides` (mit `proofUrl`) |
 | `POST /challenge/current/rides` (Bearer) | `{rideDate, km, bikeType, proofUrl}` |
 
 `bikeType`: `ROAD`, `GRAVEL`, `MTB`, `TOUR`, `INDOOR`. Max. 400 km pro Tag. Keine Zukunftsdaten.
 
-## Anmeldung (Einrichtung und Neu-Anmeldung)
+## Automatische Neu-Anmeldung per Passwort
 
-Die Website meldet per E-Mail-Code an (kein Passwort). Ablauf im eingebauten Browser:
+Die Website erlaubt neben dem E-Mail-Code auch „Mit Passwort anmelden“ (das Passwort setzt der Nutzer ggf. erst auf der Website). Ist `radsport_events.username` in der `config.json` gesetzt und hat der Nutzer das Passwort selbst mit
+`python3 -m keyring set strava-winter-sync-rse <benutzername>` abgelegt, meldet sich `rse_sync.py` bei fehlendem oder abgelaufenem Token selbst an. Dann ist die Browser-Anmeldung unten nicht nötig.
+
+## Anmeldung per E-Mail-Code (Einrichtung und Neu-Anmeldung ohne Passwort)
+
+Ablauf im eingebauten Browser:
 
 1. `https://radsport-events.de` öffnen, auf Anmelden gehen.
 2. Der Nutzer gibt seine E-Mail-Adresse ein und tippt den Code aus der Mail **selbst** ein. Login-Codes sind Zugangsdaten – nicht für den Nutzer eintippen, auch wenn er darum bittet.

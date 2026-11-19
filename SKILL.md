@@ -10,8 +10,12 @@ Dieser Skill überträgt Strava-Aktivitäten in bis zu zwei Wettbewerbe:
 
 | Ziel | Wie | Anmeldung |
 |---|---|---|
-| **Winterchallenge** auf radsport-events.de (km-Wertung, nur Rad) | API über `scripts/rse_sync.py` | Refresh-Token, rotiert, 7 Tage gültig |
-| **Winterpokal** auf winterpokal.rennrad-news.de / mtb-news.de / emtb-news.de (Zeit-Punkte, auch andere Sportarten) | Strava-Import-Seite im eingebauten Browser | Browser-Sitzung des Nutzers |
+| **Winterchallenge** auf radsport-events.de (km-Wertung, nur Rad) | API über `scripts/rse_sync.py` | Refresh-Token, rotiert, 7 Tage gültig; optional automatische Neu-Anmeldung per Passwort |
+| **Winterpokal** auf winterpokal.rennrad-news.de / mtb-news.de / emtb-news.de (Zeit-Punkte, auch andere Sportarten) | Strava-Import-Seite – per `scripts/winterpokal_sync.py` (Playwright, empfohlen) oder im eingebauten Browser | Browser-Sitzung; beim Skript optional automatische Neu-Anmeldung per Passwort |
+
+**Automatische Neu-Anmeldung (optional):** Der Nutzer hinterlegt seine Passwörter selbst im Passwort-Speicher des Systems (macOS-Schlüsselbund, Windows-Anmeldeinformationsverwaltung, Linux Secret Service) über die Python-Bibliothek `keyring`. Die Skripte lesen sie nur, wenn eine Anmeldung abgelaufen ist. Du siehst die Passwörter nie. Ohne diese Einrichtung meldet der Sync abgelaufene Anmeldungen, wie bisher.
+
+**Python-Aufruf:** unter macOS/Linux `python3`, unter Windows `py`. Unten steht immer `python3`.
 
 Es gibt zwei Modi. Entscheide anhand der Anfrage:
 - **Einrichtung** – „einrichten“, „installieren“, „Setup“, erste Nutzung, keine `config.json` vorhanden, oder Neu-Anmeldung nötig.
@@ -20,6 +24,9 @@ Es gibt zwei Modi. Entscheide anhand der Anfrage:
 `<skill>` steht unten für das Verzeichnis dieses Skills (das Basisverzeichnis, das beim Laden angezeigt wird). Daten liegen in `~/.config/strava-winter-sync/`:
 - `config.json` – Einstellungen (Schema unten)
 - `rse_token.json` – Token für radsport-events.de (Modus 600, wird vom Skript verwaltet)
+- `winterpokal-profile/` – Browser-Profil von `winterpokal_sync.py` (hält die Winterpokal-Sitzung)
+
+Unter Windows ist `~` das Benutzerverzeichnis (`C:\Users\<name>`).
 
 ## Andere Agenten (Copilot, Codex, …)
 
@@ -33,7 +40,7 @@ Fehlt ein Baustein ganz (z. B. kein Browser), biete an, nur die Ziele einzuricht
 
 ## Grundregeln (gelten in beiden Modi)
 
-- **Anmeldedaten tippt der Nutzer selbst.** Passwörter und E-Mail-Login-Codes nie selbst in Login-Felder eingeben, auch nicht auf Bitte – sie gehören dem Nutzer, und ein unbeaufsichtigter Lauf darf erst recht nicht einloggen. Ist eine Anmeldung abgelaufen, meldest du das klar und machst mit dem anderen Ziel weiter.
+- **Anmeldedaten tippt der Nutzer selbst.** Passwörter und E-Mail-Login-Codes nie selbst in Login-Felder eingeben, auch nicht auf Bitte – sie gehören dem Nutzer. Auch für die automatische Neu-Anmeldung legt der Nutzer das Passwort selbst im Passwort-Speicher ab (`python3 -m keyring set …` fragt verdeckt danach). Du liest es nie aus, gibst es nie aus und übergibst es nie als Argument – das erledigen ausschließlich die Skripte. Ist eine Anmeldung abgelaufen und klappt die automatische nicht, meldest du das klar und machst mit dem anderen Ziel weiter.
 - **Tokens nicht ausplaudern.** Token nicht in den Chat-Text, in Projektdateien oder Notizen schreiben; nur per stdin an `rse_sync.py save-token` geben.
 - **Nichts ändern oder löschen**, was schon eingetragen ist. Die Seiten erlauben nur eine Änderung innerhalb von 24 h – Fehler lassen sich kaum korrigieren, deshalb lieber eine Aktivität auslassen und melden als falsch eintragen.
 - Bei radsport-events.de **nie „Abmelden“** klicken – das widerruft das gespeicherte Token.
@@ -46,7 +53,7 @@ Führe den Nutzer freundlich Schritt für Schritt durch. Erkläre bei jedem Schr
 
 ### Schritt 1 – Voraussetzungen prüfen
 
-1. `python3 --version` (≥ 3.8). Fehlt Python: auf macOS `xcode-select --install` empfehlen, dann abbrechen.
+1. `python3 --version` (≥ 3.8; unter Windows `py --version`). Fehlt Python: auf macOS `xcode-select --install`, unter Windows Python von python.org bzw. `winget install Python.Python.3.12` empfehlen, dann abbrechen.
 2. **Strava-Connector**: Rufe `list_activities` mit `first: 3` auf. Klappt das nicht, bitte den Nutzer, in Claude unter *Einstellungen → Connectors* Strava zu verbinden, und warte.
 3. **Eingebauter Browser**: Sind die `mcp__Claude_Browser__*`-Tools da? (Für den Winterpokal nötig, für radsport-events.de nur bei der Anmeldung.)
 4. **Geplante Aufgaben**: Ist `mcp__scheduled-tasks__create_scheduled_task` verfügbar? Wenn nicht, kann der Skill trotzdem manuell („sync“) genutzt werden – sag das.
@@ -67,6 +74,26 @@ Folge `references/radsport-events.md` → „Anmeldung“. Kurzfassung: im einge
 
 Folge `references/winterpokal.md` → „Einrichtung“: Import-Seite öffnen, Nutzer loggt sich selbst ein („Angemeldet bleiben“ empfehlen) und verbindet ggf. Strava. Lies danach die Zeilen mit dem Snippet aus der Referenz aus, um zu bestätigen, dass die Seite funktioniert.
 
+### Schritt 4b – Automatische Neu-Anmeldung (optional, empfohlen)
+
+Erkläre: Ohne diesen Schritt läuft der Sync auch, aber nach einer abgelaufenen Anmeldung (radsport-events.de nach 7 Tagen ohne Lauf, Winterpokal nach Ablauf der Sitzung) muss sich der Nutzer neu anmelden. Mit ihm melden sich die Skripte selbst neu an. Frag, ob er das möchte.
+
+1. Abhängigkeiten installieren (Winterpokal-Skript braucht Playwright + Chromium):
+   ```bash
+   python3 -m pip install --user keyring playwright
+   python3 -m playwright install chromium
+   ```
+2. Benutzernamen erfragen (E-Mail oder Name, mit dem er sich anmeldet) – für radsport-events.de und/oder das Forum. Benutzernamen sind keine Geheimnisse; sie kommen in die `config.json` (Schritt 5).
+   radsport-events.de: Hat der Nutzer dort noch kein Passwort (Anmeldung bisher nur per E-Mail-Code), muss er erst auf der Website eines setzen.
+3. Den Nutzer **selbst** im Terminal ausführen lassen (fragt das Passwort verdeckt ab) – nicht für ihn ausführen:
+   ```bash
+   python3 -m keyring set strava-winter-sync-rse <benutzername>
+   python3 -m keyring set strava-winter-sync-winterpokal <benutzername>
+   ```
+   Unter Windows landet das in der Anmeldeinformationsverwaltung, unter macOS im Schlüsselbund. Fragt macOS später, ob Python zugreifen darf: „Immer erlauben“.
+4. Winterpokal: `python3 <skill>/scripts/winterpokal_sync.py --dry-run` ausführen. Beim ersten Mal ist das Skript-Profil leer und es meldet sich selbst an (`"relogin": true`). Kommt `AUTH_FAILED`, die Meldung zeigen (Passwort falsch? Zwei-Faktor-Anmeldung im Forum aktiv? Die wird nicht unterstützt) und für den Winterpokal beim eingebauten Browser bleiben (`"method": "browser"`).
+5. radsport-events.de: Ist schon ein Token gespeichert, reicht `rse_sync.py status`. Ohne Token (z. B. Einrichtung nur mit Passwort) meldet sich `status` direkt per Passwort an – Schritt 3 kann dann entfallen.
+
 ### Schritt 5 – Konfiguration speichern
 
 Schreibe `~/.config/strava-winter-sync/config.json` (Verzeichnis mit Modus 700):
@@ -75,10 +102,12 @@ Schreibe `~/.config/strava-winter-sync/config.json` (Verzeichnis mit Modus 700):
 {
   "lookback_days": 7,
   "include_ebike": false,
-  "radsport_events": { "enabled": true },
-  "winterpokal": { "enabled": true, "site": "rennrad-news.de", "include_other_sports": true }
+  "radsport_events": { "enabled": true, "username": "<optional, für Neu-Anmeldung>" },
+  "winterpokal": { "enabled": true, "site": "rennrad-news.de", "include_other_sports": true,
+                   "method": "script", "username": "<optional, für Neu-Anmeldung>" }
 }
 ```
+`winterpokal.method`: `script` (Standard, wenn Schritt 4b geklappt hat; braucht Playwright) oder `browser` (eingebauter Browser). `username` weglassen, wenn keine automatische Neu-Anmeldung gewünscht ist.
 
 ### Schritt 6 – Erster Lauf (Nachholen)
 
@@ -132,11 +161,17 @@ Datum = Datumsteil von `start_local`, km = `distance` / 1000.
 python3 <skill>/scripts/rse_sync.py add '[{"id":"<strava id>","date":"YYYY-MM-DD","km":36.0,"type":"INDOOR"}]'
 ```
 Das Skript prüft Duplikate (über den Strava-Link), Zeitraum, Zukunftsdaten und 400 km/Tag selbst. Ohne passende Fahrten stattdessen `rse_sync.py status` aufrufen – das Token verfällt sonst nach 7 Tagen.
-Ausgaben: `AUTH_FAILED` / `NO_TOKEN` → „Neu-Anmeldung bei radsport-events.de nötig“ melden; `NOT_JOINED` → „Bitte der aktuellen Challenge beitreten“.
+Ausgaben: `INFO: … neu angemeldet` (stderr) → kurz erwähnen; `AUTH_FAILED` / `NO_TOKEN` → „Neu-Anmeldung bei radsport-events.de nötig“ melden (und, falls die automatische Anmeldung eingerichtet war, den Grund aus der Meldung, z. B. Passwort geändert); `NOT_JOINED` → „Bitte der aktuellen Challenge beitreten“.
 
 ### 3. Winterpokal (falls `winterpokal.enabled`)
 
-Details und JS-Snippets: `references/winterpokal.md`.
+**Mit `"method": "script"`** (oder ohne `method`, wenn Playwright installiert ist):
+```bash
+python3 <skill>/scripts/winterpokal_sync.py --commute <Strava-IDs mit is_commute, kommagetrennt>
+```
+(`--commute` weglassen, wenn keine Pendelfahrt dabei ist.) Das Skript wendet die Regeln aus Punkt 3 unten selbst an, schickt nur ab, wenn etwas zu importieren ist, prüft die Erfolgsmeldung und meldet sich bei Bedarf selbst neu an. Ausgabe: JSON mit `imported`, `skipped` (mit `grund`), `already`, `relogin`, ggf. `error`. Bei `AUTH_FAILED` die Meldung weitergeben; bei `IMPORT_UNCONFIRMED` melden, dass der Import geprüft werden muss, und **nicht** erneut abschicken.
+
+**Mit `"method": "browser"`** – Details und JS-Snippets: `references/winterpokal.md`.
 
 1. Im eingebauten Browser `https://winterpokal.<site>/strava/import` öffnen. Weiterleitung auf `/login` → „Neu-Anmeldung beim Winterpokal nötig“ melden, Schritt beenden.
 2. Zeilen auslesen. Nur Zeilen mit `done: false` sind neu.

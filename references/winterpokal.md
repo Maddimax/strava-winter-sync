@@ -19,7 +19,13 @@ Stretching zählt nicht.
 
 ## Warum über die Strava-Import-Seite (und nicht die API)
 
-Es gibt eine offizielle API (Header `api-token`, `POST /api/v1/entries/add.json`). Über sie eingetragene Einträge zählen aber **nicht** im „Tracked“-Ranking – nur importierte Aktivitäten tun das. Deshalb nutzt dieser Skill die Import-Seite im eingebauten Browser mit der gespeicherten Anmeldung des Nutzers. Der Strava-Import läuft **nicht** automatisch; man muss ihn auf der Seite auslösen.
+Es gibt eine offizielle API (Header `api-token`, `POST /api/v1/entries/add.json`). Über sie eingetragene Einträge zählen aber **nicht** im „Tracked“-Ranking – nur importierte Aktivitäten tun das. Deshalb nutzt dieser Skill die Import-Seite mit der gespeicherten Anmeldung des Nutzers – entweder per `scripts/winterpokal_sync.py` (Playwright, eigenes Browser-Profil) oder im eingebauten Browser. Der Strava-Import läuft **nicht** automatisch; man muss ihn auf der Seite auslösen.
+
+## Anmeldung (Forum-Login)
+
+Die Winterpokal-Seiten nutzen das Forum-Konto (XenForo). `…/login` verlinkt auf `https://www.<domain>/forum/login/?_xfRedirect=winterpokal`. Das Formular (`action` `/forum/login/login`) hat die Felder `login` (Benutzername oder E-Mail) und `password` in einem Schritt, „Angemeldet bleiben“ ist vorausgewählt (`remember=1`), kein Captcha. Danach gelangt man per Single-Sign-on zurück zum Winterpokal. Eine im Forum aktivierte Zwei-Faktor-Anmeldung kann das Skript nicht erledigen.
+
+`winterpokal_sync.py` meldet sich dort nur an, wenn die Sitzung im Skript-Profil abgelaufen ist, `winterpokal.username` gesetzt ist und das Passwort im Passwort-Speicher liegt (`python3 -m keyring set strava-winter-sync-winterpokal <benutzername>`).
 
 ## Einrichtung
 
